@@ -156,7 +156,7 @@ def format_value(value: Any, col_name: str) -> str:
 ###############################################################################
 
 INSTRUCTION_STR = (
-    "1. Convert the query to executable Python code using **Polars** (not pandas).\n"
+    "1. Convert the query to executable Python code using **Polars** (not pandas). DO NOT use the option case sensitive\n"
     "2. The final line must be a Python expression that can be passed to eval().\n"
     "3. It **must return a pl.DataFrame** (use head() if necessary).\n"
     "4. PRINT ONLY THE EXPRESSION, no extra text or formatting.\n"
