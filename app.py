@@ -183,10 +183,40 @@ PROMPT_TEMPLATE = (
     "Expression:"
 )
 
-def get_polars_expression(query: str, df_sample: str, model: str = "gemini-2.5-flash") -> str:
-    """Generate Polars expression from natural language query using Gemini."""
+# Add a new prompt template for error correction
+ERROR_CORRECTION_PROMPT = (
+    "You are working with a Polars DataFrame in Python.\n"
+    "The DataFrame variable is named `df`.\n"
+    "Here is the output of `print(df.head())`:\n"
+    "{df_str}\n\n"
+    "The user query was: {query}\n"
+    "You previously generated this code, but it gave an error:\n"
+    "---\n"
+    "{prev_code}\n"
+    "---\n"
+    "The error message was:\n"
+    "---\n"
+    "{error_msg}\n"
+    "---\n"
+    "Please generate a new, correct Polars expression that fixes the error.\n"
+    "Follow these instructions strictly:\n"
+    "{instructions}\n"
+    "Expression:"
+)
+
+def get_polars_expression(query: str, df_sample: str, model: str = "gemini-2.5-flash", error_context: dict = {}) -> str:
+    """Generate Polars expression from natural language query using Gemini. Optionally, provide error context for correction."""
     try:
-        prompt = PROMPT_TEMPLATE.format(df_str=df_sample, instructions=INSTRUCTION_STR, query=query)
+        if error_context:
+            prompt = ERROR_CORRECTION_PROMPT.format(
+                df_str=df_sample,
+                query=query,
+                prev_code=error_context.get("prev_code", ""),
+                error_msg=error_context.get("error_msg", ""),
+                instructions=INSTRUCTION_STR
+            )
+        else:
+            prompt = PROMPT_TEMPLATE.format(df_str=df_sample, instructions=INSTRUCTION_STR, query=query)
         model_obj = genai.GenerativeModel(model)
         resp = model_obj.generate_content(prompt, generation_config={"temperature": 0})
         expr = resp.text.strip()
@@ -198,7 +228,7 @@ def get_polars_expression(query: str, df_sample: str, model: str = "gemini-2.5-f
         return ""
 
 def query_boats(df: pl.DataFrame, query: str, model: str = "gemini-2.5-flash") -> Tuple[str, pl.DataFrame, List[str]]:
-    """Query boats using AI and return results."""
+    """Query boats using AI and return results. If the generated code fails, retry with error context."""
     if df.is_empty():
         return "", pl.DataFrame(), []
     
@@ -225,8 +255,26 @@ def query_boats(df: pl.DataFrame, query: str, model: str = "gemini-2.5-flash") -
         
         return expr, res, show_cols
     except Exception as e:
-        st.error(f"Error executing query: {e}")
-        return expr, pl.DataFrame(), []
+        # Retry with error context
+        error_context = {"prev_code": expr, "error_msg": str(e)}
+        expr2 = get_polars_expression(query, df_head_str, model, error_context=error_context)
+        if not expr2 or expr2 == expr:
+            st.error(f"Error executing query: {e}")
+            return expr, pl.DataFrame(), []
+        try:
+            local_ns = {"df": df, "pl": pl}
+            res = eval(expr2, {}, local_ns)
+            if isinstance(res, pl.LazyFrame):
+                res = res.collect()
+            elif not isinstance(res, pl.DataFrame):
+                res = pl.DataFrame({"result": [res]})
+            cols_used = extract_cols(expr2)
+            show_cols = get_display_columns(res, cols_used)
+            res = res.head(20)
+            return expr2, res, show_cols
+        except Exception as e2:
+            st.error(f"Error executing corrected query: {e2}")
+            return expr2, pl.DataFrame(), []
 
 ###############################################################################
 # UI Components
