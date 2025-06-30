@@ -158,6 +158,7 @@ def format_value(value: Any, col_name: str) -> str:
 INSTRUCTION_STR = (
     "1. Convert the query to executable Python code using **Polars** (not pandas). DO NOT use the option case sensitive\n"
     "2. The final line must be a Python expression that can be passed to eval().\n"
+    "3. DO NOT use the option case sensitive\n"
     "3. It **must return a pl.DataFrame** (use head() if necessary).\n"
     "4. PRINT ONLY THE EXPRESSION, no extra text or formatting.\n"
     "5. Do not wrap the expression in quotes or markdown.\n"
@@ -169,7 +170,8 @@ INSTRUCTION_STR = (
     "or similar pattern matching.\n"
     "9. For location filtering, use: `df.filter(pl.col('location').str.contains('location_name'))` do not use the option case sensitive "
     "or similar pattern matching.\n"
-    "10. Combine filters using `&` (AND) operator."
+    "10. Combine filters using `&` (AND) operator.\n"
+    "11. For case-insensitive substring search in Polars, use a regex pattern with (?i) at the start, e.g. pl.col('brand').str.contains('(?i)azimut'). Do NOT use a case_insensitive argument in .str.contains.\n"
 )
 
 PROMPT_TEMPLATE = (
@@ -198,7 +200,7 @@ def get_polars_expression(query: str, df_sample: str, model: str = "gemini-2.5-f
         return ""
 
 def query_boats(df: pl.DataFrame, query: str, model: str = "gemini-2.5-flash") -> Tuple[str, pl.DataFrame, List[str]]:
-    """Query boats using AI and return results."""
+    """Query boats using AI and return results. Only generate the code once and show errors if any."""
     if df.is_empty():
         return "", pl.DataFrame(), []
     
@@ -225,6 +227,8 @@ def query_boats(df: pl.DataFrame, query: str, model: str = "gemini-2.5-flash") -
         
         return expr, res, show_cols
     except Exception as e:
+        with st.expander("🔍 Generated Query", expanded=False):
+            st.code(expr, language="python")
         st.error(f"Error executing query: {e}")
         return expr, pl.DataFrame(), []
 
@@ -348,12 +352,14 @@ def main():
         ]
         for example in examples:
             if st.button(example, key=f"example_{example}"):
-                st.session_state.query = example
-    
+                st.session_state["query"] = example
+                st.session_state["query_input"] = example
+
     # Query input
     query = st.text_area(
         "Describe what you're looking for:",
-        value=st.session_state.get("query", ""),
+        value=st.session_state.get("query_input", ""),
+        key="query_input",
         placeholder="e.g., Best Azimut boat under €500,000 or boats in Liguria",
         height=100,
         help="Describe your boat requirements in natural language"
@@ -365,17 +371,10 @@ def main():
         search_button = st.button("🔍 Search Boats", use_container_width=True)
     
     # Process query
-    if search_button and query.strip():
+    if search_button and st.session_state["query_input"].strip():
         with st.spinner("🤖 AI is analyzing your query..."):
-            expr, results_df, display_cols = query_boats(df, query.strip(), model)
-            
-            if expr:
-                st.session_state.query = query
-                display_results(expr, results_df, display_cols)
-            else:
-                st.error("Unable to process your query. Please try rephrasing it.")
-    
-    # Show some sample data
+            expr, results_df, display_cols = query_boats(df, st.session_state["query_input"].strip(), model)
+            display_results(expr, results_df, display_cols)
     elif not search_button:
         st.header("📋 Sample Data")
         st.write("Here's a preview of the available boat data:")
