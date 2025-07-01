@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import streamlit as st
 import polars as pl
 import json
@@ -185,10 +187,27 @@ PROMPT_TEMPLATE = (
     "Expression:"
 )
 
-def get_polars_expression(query: str, df_sample: str, model: str = "gemini-2.5-flash") -> str:
-    """Generate Polars expression from natural language query using Gemini."""
+def get_polars_expression(
+    query: str,
+    df_sample: str,
+    model: str = "gemini-2.5-flash",
+    error: str | None = None,
+) -> str:
+    """Generate Polars expression from natural language query using Gemini.
+
+    If ``error`` is provided, it will be shown to the model so that it can
+    correct the previous attempt.
+    """
     try:
-        prompt = PROMPT_TEMPLATE.format(df_str=df_sample, instructions=INSTRUCTION_STR, query=query)
+        prompt = PROMPT_TEMPLATE.format(
+            df_str=df_sample, instructions=INSTRUCTION_STR, query=query
+        )
+        if error:
+            prompt += (
+                "\nThe previous expression produced the following error:\n"
+                f"{error}\nPlease provide a corrected Polars expression."
+            )
+
         model_obj = genai.GenerativeModel(model)
         resp = model_obj.generate_content(prompt, generation_config={"temperature": 0})
         expr = resp.text.strip()
@@ -199,38 +218,56 @@ def get_polars_expression(query: str, df_sample: str, model: str = "gemini-2.5-f
         st.error(f"Error generating expression: {e}")
         return ""
 
-def query_boats(df: pl.DataFrame, query: str, model: str = "gemini-2.5-flash") -> Tuple[str, pl.DataFrame, List[str]]:
-    """Query boats using AI and return results. Only generate the code once and show errors if any."""
+def query_boats(
+    df: pl.DataFrame,
+    query: str,
+    model: str = "gemini-2.5-flash",
+    max_retries: int = 2,
+) -> Tuple[str, pl.DataFrame, List[str]]:
+    """Query boats using AI and return results.
+
+    The function will attempt to regenerate the Polars expression if the first
+    attempt fails due to a Python or Polars error.
+    """
     if df.is_empty():
         return "", pl.DataFrame(), []
-    
+
     df_head_str = df.head().to_pandas().to_string(index=False)
-    expr = get_polars_expression(query, df_head_str, model)
-    
-    if not expr:
-        return "", pl.DataFrame(), []
-    
-    try:
-        local_ns = {"df": df, "pl": pl}
-        res = eval(expr, {}, local_ns)
-        
-        if isinstance(res, pl.LazyFrame):
-            res = res.collect()
-        elif not isinstance(res, pl.DataFrame):
-            res = pl.DataFrame({"result": [res]})
-        
-        cols_used = extract_cols(expr)
-        show_cols = get_display_columns(res, cols_used)
-        
-        # Limit results to top 20 for better performance
-        res = res.head(20)
-        
-        return expr, res, show_cols
-    except Exception as e:
-        with st.expander("🔍 Generated Query", expanded=False):
-            st.code(expr, language="python")
-        st.error(f"Error executing query: {e}")
-        return expr, pl.DataFrame(), []
+
+    error: str | None = None
+    expr = ""
+
+    for _ in range(max_retries + 1):
+        expr = get_polars_expression(query, df_head_str, model, error)
+
+        if not expr:
+            return "", pl.DataFrame(), []
+
+        try:
+            compile(expr, "<string>", "eval")
+            local_ns = {"df": df, "pl": pl}
+            res = eval(expr, {}, local_ns)
+
+            if isinstance(res, pl.LazyFrame):
+                res = res.collect()
+            elif not isinstance(res, pl.DataFrame):
+                res = pl.DataFrame({"result": [res]})
+
+            cols_used = extract_cols(expr)
+            show_cols = get_display_columns(res, cols_used)
+
+            # Limit results to top 20 for better performance
+            res = res.head(20)
+
+            return expr, res, show_cols
+        except Exception as e:
+            error = str(e)
+
+    # If we reach here, all attempts failed
+    with st.expander("🔍 Generated Query", expanded=False):
+        st.code(expr or "", language="python")
+    st.error(f"Error executing query: {error}")
+    return expr, pl.DataFrame(), []
 
 ###############################################################################
 # UI Components
