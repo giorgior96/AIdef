@@ -168,6 +168,16 @@ def highlight_numbers_html(text: str) -> str:
     pattern = r"(\b\d+(?:[.,]\d+)?\b)"
     return re.sub(pattern, r"<mark>\1</mark>", text)
 
+
+###############################################################################
+# Session State Helpers
+###############################################################################
+
+def apply_pending_query_update() -> None:
+    """Apply pending query update before widgets are created."""
+    if "updated_query" in st.session_state:
+        st.session_state["query_input"] = st.session_state.pop("updated_query")
+
 ###############################################################################
 # AI Integration Functions
 ###############################################################################
@@ -347,6 +357,9 @@ def display_results(expr: str, results_df: pl.DataFrame, display_cols: List[str]
 ###############################################################################
 
 def main():
+    # Apply pending query updates before widgets are created
+    apply_pending_query_update()
+
     # Configure Gemini API key (hardcoded)
     api_key = "AIzaSyBUMXx4ceUhKJanUduKzWrmNauxrYooIIc"
     genai.configure(api_key=api_key)
@@ -439,9 +452,10 @@ def main():
             updated_query = updated_query[:start] + new_val + updated_query[end:]
 
         if updated_query != st.session_state["query_input"]:
-            st.session_state["query_input"] = updated_query
+            st.session_state["updated_query"] = updated_query
+            st.experimental_rerun()
 
-        st.markdown(highlight_numbers_html(st.session_state["query_input"]), unsafe_allow_html=True)
+        st.markdown(highlight_numbers_html(st.session_state.get("query_input", "")), unsafe_allow_html=True)
     
     # Search button
     col1, col2, col3 = st.columns([1, 2, 1])
