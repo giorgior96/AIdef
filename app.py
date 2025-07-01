@@ -64,6 +64,10 @@ st.markdown("""
     .stButton > button:hover {
         background-color: #0056b3;
     }
+    mark {
+        background-color: #fffa65;
+        padding: 0 4px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -152,6 +156,17 @@ def format_value(value: Any, col_name: str) -> str:
         return str(value)
     else:
         return str(value)
+
+def extract_number_spans(text: str) -> List[Tuple[str, int, int]]:
+    """Return numbers in the text along with their spans."""
+    pattern = r"\b\d+(?:[.,]\d+)?\b"
+    return [(m.group(0), m.start(), m.end()) for m in re.finditer(pattern, text)]
+
+
+def highlight_numbers_html(text: str) -> str:
+    """Wrap numbers in <mark> tags for highlighting."""
+    pattern = r"(\b\d+(?:[.,]\d+)?\b)"
+    return re.sub(pattern, r"<mark>\1</mark>", text)
 
 ###############################################################################
 # AI Integration Functions
@@ -401,6 +416,32 @@ def main():
         height=100,
         help="Describe your boat requirements in natural language"
     )
+
+    # Detect and highlight numeric values so they can be edited
+    numbers = extract_number_spans(st.session_state.get("query_input", ""))
+    if numbers:
+        st.markdown("**Edit numeric values:**")
+        new_vals = []
+        for idx, (num, _start, _end) in enumerate(numbers):
+            key = f"num_input_{idx}"
+            try:
+                val = float(num.replace(",", "."))
+            except ValueError:
+                val = 0.0
+            new_val = st.number_input(f"Value {idx+1}", value=val, key=key)
+            if float(new_val).is_integer():
+                new_vals.append(str(int(new_val)))
+            else:
+                new_vals.append(str(new_val))
+
+        updated_query = st.session_state["query_input"]
+        for (num, start, end), new_val in zip(reversed(numbers), reversed(new_vals)):
+            updated_query = updated_query[:start] + new_val + updated_query[end:]
+
+        if updated_query != st.session_state["query_input"]:
+            st.session_state["query_input"] = updated_query
+
+        st.markdown(highlight_numbers_html(st.session_state["query_input"]), unsafe_allow_html=True)
     
     # Search button
     col1, col2, col3 = st.columns([1, 2, 1])
