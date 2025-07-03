@@ -84,7 +84,6 @@ Try these natural language queries:
 - **Example Queries**: Click-to-use sample queries
 - **Data Preview**: See available columns and sample data
 - **Beautiful Cards**: Each boat displayed in an attractive card format
-- **Boat Images**: Shows the first picture of each boat
 - **Price Formatting**: Automatic formatting (€1.2M, €500K)
 - **Year Highlighting**: Clear year display
 
@@ -180,7 +179,7 @@ If you encounter issues:
 
 - [ ] Add filters for boat type (sailboat, motorboat, etc.)
 - [ ] Implement sorting options
-- [x] Add image support for boats
+- [ ] Add image support for boats
 - [ ] Export results to CSV/PDF
 - [ ] Multi-language support
 - [ ] Advanced analytics dashboard

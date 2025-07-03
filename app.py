@@ -308,12 +308,7 @@ def display_boat_card(row: dict, display_cols: List[str]):
         <div class="boat-card">
             <h4 style="color: #1f77b4; margin-bottom: 0.5rem;">{boat_name}</h4>
         """, unsafe_allow_html=True)
-
-        # Show the first image if available
-        img_urls = row.get("image_urls")
-        if isinstance(img_urls, list) and img_urls:
-            st.image(img_urls[0], use_column_width=True)
-
+        
         cols = st.columns(3)
         col_idx = 0
         
