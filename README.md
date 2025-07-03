@@ -196,4 +196,4 @@ If you encounter issues:
 
 ---
 
-**Made with ❤️ using Streamlit, Polars, and Google Gemini AI** 
+**Made with ❤️ using Streamlit, Polars, and Google Gemini AI**
