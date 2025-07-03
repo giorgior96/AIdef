@@ -30,9 +30,6 @@ from rich.console import Console
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-# Load environment variables
-load_dotenv()
-
 ###############################################################################
 # 1. Dataset loader                                                          #
 ###############################################################################
@@ -193,8 +190,8 @@ def bullets(df: pl.DataFrame, cols: List[str]):
 ###############################################################################
 
 def main():
-    # Configure Gemini API key from environment
-    api_key = os.getenv("GEMINI_API_KEYS")
+    # Configure Gemini API key (hardcoded)
+    api_key = "AIzaSyBUMXx4ceUhKJanUduKzWrmNauxrYooIIc"
     genai.configure(api_key=api_key)
 
     df = load_dataset()

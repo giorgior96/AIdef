@@ -360,8 +360,8 @@ def main():
     # Apply pending query updates before widgets are created
     apply_pending_query_update()
 
-    # Configure Gemini API key from environment
-    api_key = os.getenv("GEMINI_API_KEYS")
+    # Configure Gemini API key (hardcoded)
+    api_key = "AIzaSyBUMXx4ceUhKJanUduKzWrmNauxrYooIIc"
     genai.configure(api_key=api_key)
     
     # Header
