@@ -28,12 +28,10 @@ A powerful AI-powered boat search application that uses natural language queries
 
 3. **Set up your API key**:
    - Create a `.env` file in the project directory
-   - Add your Gemini API key using the variable `GEMINI_API_KEYS`:
+   - Add your Gemini API key:
      ```
      GEMINI_API_KEYS=your_api_key_here
      ```
-   - The application reads this variable via `os.getenv`, so you can also set it
-     in your shell environment.
 
 4. **Prepare your dataset**:
    - Place your boat data JSON file as `output_with_contact.json` in the project directory
@@ -133,9 +131,7 @@ streamlit run app.py --server.address=0.0.0.0 --server.port=8501
 ## 🔧 Configuration
 
 ### Environment Variables
-The application looks for a Gemini API key in the environment.
-- `GEMINI_API_KEYS`: Your Google Gemini API key. It can be set in a `.env`
-  file or directly in your shell environment.
+- `GEMINI_API_KEYS`: Your Google Gemini API key
 
 ### Customization
 - Modify column mappings in `app.py` to match your dataset
