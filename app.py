@@ -453,7 +453,7 @@ def main():
 
         if updated_query != st.session_state["query_input"]:
             st.session_state["updated_query"] = updated_query
-            st.experimental_rerun()
+            st.rerun()
 
         st.markdown(highlight_numbers_html(st.session_state.get("query_input", "")), unsafe_allow_html=True)
     
