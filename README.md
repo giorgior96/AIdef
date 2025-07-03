@@ -51,6 +51,12 @@ This will open a beautiful web interface at `http://localhost:8501`
 ```bash
 python filters3.py
 ```
+#### Option 3: FastAPI Service
+```bash
+uvicorn api:app --reload
+```
+Use `/boats?query=<your query>` to retrieve matching boat IDs.
+
 
 ## 📊 Dataset Format
 
